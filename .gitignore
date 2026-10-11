@@ -58,3 +58,5 @@ libsciter.dylib
 flutter/web/
 # libdrmtap is cloned at build time by build.py (not a submodule)
 /third_party/libdrmtap/
+# workbuddy 项目记忆目录（仅本地，勿入库）
+.workbuddy/
