@@ -90,7 +90,7 @@ jobs:
         with:
           ref: ${{ matrix.job.ref }}
           submodules: recursive
-          token: ${{ secrets.SUB_TOKEN }}
+          token: ${{ secrets.for_rustdesk }}
 
       - name: Import the codesign cert
         if: env.MACOS_P12_BASE64 != null
@@ -252,7 +252,7 @@ jobs:
         with:
           ref: ${{ matrix.job.ref }}
           submodules: recursive
-          token: ${{ secrets.SUB_TOKEN }}
+          token: ${{ secrets.for_rustdesk }}
 
       - name: Install dependencies
         run: |

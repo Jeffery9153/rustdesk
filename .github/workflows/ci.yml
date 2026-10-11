@@ -110,7 +110,7 @@ jobs:
       uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       with:
         submodules: recursive
-        token: ${{ secrets.SUB_TOKEN }}
+        token: ${{ secrets.for_rustdesk }}
 
     - name: Install prerequisites
       shell: bash
