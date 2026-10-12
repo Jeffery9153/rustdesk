@@ -66,7 +66,24 @@ def assert_present(path: str, needle: str, label: str) -> None:
         sys.exit(f"[inject] 错误：{label} 复核失败，{path} 中找不到 {needle!r}")
 
 
+def _force_utf8_stdio() -> None:
+    """把标准输出/错误强制成 UTF-8。
+
+    Windows runner 的控制台默认编码不是 UTF-8（cp1252 / cp437 等），本脚本打印的
+    中文标签会抛 UnicodeEncodeError 让整个构建失败（已在 windows-2022 上实测复现）。
+    这里就地改掉编码；万一仍有无法编码的字符，用 replace 兜底 —— 日志可读性可以
+    让步，但绝不能因为日志编码问题中断构建。
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
+
 def main() -> None:
+    _force_utf8_stdio()
+
     servers = require_env("RD_SERVERS")
     pubkey = require_env("RD_PUBKEY")
     api_url = require_env("RD_API_URL")

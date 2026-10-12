@@ -154,8 +154,12 @@ jobs:
           RD_SERVERS: ${{ secrets.RD_SERVERS }}
           RD_PUBKEY: ${{ secrets.RD_PUBKEY }}
           RD_API_URL: ${{ secrets.RD_API_URL }}
+          # Windows runner 控制台默认非 UTF-8，强制 Python 走 UTF-8，避免 print 中文时崩溃
+          PYTHONUTF8: "1"
+          PYTHONIOENCODING: "utf-8"
         run: |
           PY="$(command -v python3 || command -v python)"
+          if [ -z "$PY" ]; then echo "[inject] 未找到 python3/python，无法注入"; exit 1; fi
           "$PY" .github/scripts/inject_custom_client.py
 
       - name: Restore bridge files
@@ -509,8 +513,12 @@ jobs:
           RD_SERVERS: ${{ secrets.RD_SERVERS }}
           RD_PUBKEY: ${{ secrets.RD_PUBKEY }}
           RD_API_URL: ${{ secrets.RD_API_URL }}
+          # Windows runner 控制台默认非 UTF-8，强制 Python 走 UTF-8，避免 print 中文时崩溃
+          PYTHONUTF8: "1"
+          PYTHONIOENCODING: "utf-8"
         run: |
           PY="$(command -v python3 || command -v python)"
+          if [ -z "$PY" ]; then echo "[inject] 未找到 python3/python，无法注入"; exit 1; fi
           "$PY" .github/scripts/inject_custom_client.py
 
       - name: Install LLVM and Clang
@@ -679,8 +687,12 @@ jobs:
           RD_SERVERS: ${{ secrets.RD_SERVERS }}
           RD_PUBKEY: ${{ secrets.RD_PUBKEY }}
           RD_API_URL: ${{ secrets.RD_API_URL }}
+          # Windows runner 控制台默认非 UTF-8，强制 Python 走 UTF-8，避免 print 中文时崩溃
+          PYTHONUTF8: "1"
+          PYTHONIOENCODING: "utf-8"
         run: |
           PY="$(command -v python3 || command -v python)"
+          if [ -z "$PY" ]; then echo "[inject] 未找到 python3/python，无法注入"; exit 1; fi
           "$PY" .github/scripts/inject_custom_client.py
 
       - name: Install flutter
@@ -816,8 +828,12 @@ jobs:
           RD_SERVERS: ${{ secrets.RD_SERVERS }}
           RD_PUBKEY: ${{ secrets.RD_PUBKEY }}
           RD_API_URL: ${{ secrets.RD_API_URL }}
+          # Windows runner 控制台默认非 UTF-8，强制 Python 走 UTF-8，避免 print 中文时崩溃
+          PYTHONUTF8: "1"
+          PYTHONIOENCODING: "utf-8"
         run: |
           PY="$(command -v python3 || command -v python)"
+          if [ -z "$PY" ]; then echo "[inject] 未找到 python3/python，无法注入"; exit 1; fi
           "$PY" .github/scripts/inject_custom_client.py
 
       - name: Import the codesign cert
@@ -1167,8 +1183,12 @@ jobs:
           RD_SERVERS: ${{ secrets.RD_SERVERS }}
           RD_PUBKEY: ${{ secrets.RD_PUBKEY }}
           RD_API_URL: ${{ secrets.RD_API_URL }}
+          # Windows runner 控制台默认非 UTF-8，强制 Python 走 UTF-8，避免 print 中文时崩溃
+          PYTHONUTF8: "1"
+          PYTHONIOENCODING: "utf-8"
         run: |
           PY="$(command -v python3 || command -v python)"
+          if [ -z "$PY" ]; then echo "[inject] 未找到 python3/python，无法注入"; exit 1; fi
           "$PY" .github/scripts/inject_custom_client.py
 
       - name: Install flutter
@@ -1617,8 +1637,12 @@ jobs:
           RD_SERVERS: ${{ secrets.RD_SERVERS }}
           RD_PUBKEY: ${{ secrets.RD_PUBKEY }}
           RD_API_URL: ${{ secrets.RD_API_URL }}
+          # Windows runner 控制台默认非 UTF-8，强制 Python 走 UTF-8，避免 print 中文时崩溃
+          PYTHONUTF8: "1"
+          PYTHONIOENCODING: "utf-8"
         run: |
           PY="$(command -v python3 || command -v python)"
+          if [ -z "$PY" ]; then echo "[inject] 未找到 python3/python，无法注入"; exit 1; fi
           "$PY" .github/scripts/inject_custom_client.py
 
       - name: Set Swap Space
@@ -1953,8 +1977,12 @@ jobs:
           RD_SERVERS: ${{ secrets.RD_SERVERS }}
           RD_PUBKEY: ${{ secrets.RD_PUBKEY }}
           RD_API_URL: ${{ secrets.RD_API_URL }}
+          # Windows runner 控制台默认非 UTF-8，强制 Python 走 UTF-8，避免 print 中文时崩溃
+          PYTHONUTF8: "1"
+          PYTHONIOENCODING: "utf-8"
         run: |
           PY="$(command -v python3 || command -v python)"
+          if [ -z "$PY" ]; then echo "[inject] 未找到 python3/python，无法注入"; exit 1; fi
           "$PY" .github/scripts/inject_custom_client.py
 
       - name: Set Swap Space
@@ -2289,8 +2317,12 @@ jobs:
           RD_SERVERS: ${{ secrets.RD_SERVERS }}
           RD_PUBKEY: ${{ secrets.RD_PUBKEY }}
           RD_API_URL: ${{ secrets.RD_API_URL }}
+          # Windows runner 控制台默认非 UTF-8，强制 Python 走 UTF-8，避免 print 中文时崩溃
+          PYTHONUTF8: "1"
+          PYTHONIOENCODING: "utf-8"
         run: |
           PY="$(command -v python3 || command -v python)"
+          if [ -z "$PY" ]; then echo "[inject] 未找到 python3/python，无法注入"; exit 1; fi
           "$PY" .github/scripts/inject_custom_client.py
 
       - name: Modify vcpkg.json for armv7
