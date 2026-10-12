@@ -1,0 +1,188 @@
+name: Cleanup artifacts
+
+# 手动触发的清理工具（不设 schedule，不会自动跑）。
+# 技术栈与 clear-cache.yml 一致：actions/github-script，无额外依赖、无需 PAT。
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_days:
+        description: "保留最近 N 天创建的构建产物；填 0 = 全部删除"
+        required: true
+        default: "0"
+      asset_scope:
+        description: "nightly release 附件清理范围"
+        type: choice
+        options:
+          - legacy_and_non_x86
+          - legacy_only
+          - none
+        default: legacy_and_non_x86
+      dry_run:
+        description: "演练模式（只列出将要删除的对象，不实际删除）"
+        type: boolean
+        default: true
+
+permissions:
+  actions: write
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cleanup artifacts and legacy release assets
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          ARTIFACT_DAYS: ${{ inputs.artifact_days }}
+          ASSET_SCOPE: ${{ inputs.asset_scope }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const dryRun = String(process.env.DRY_RUN || 'true') === 'true';
+            const keepDays = parseInt(process.env.ARTIFACT_DAYS || '0', 10);
+            const assetScope = String(process.env.ASSET_SCOPE || 'legacy_and_non_x86');
+
+            // 要删除的 1.5.0 附件精确名单（非 x86 架构 + 已停用的变体）。
+            // 保留：x86 三件套(exe/msi/deb/rpm/pkg)、macOS 双架构 dmg、unsigned.tar.gz、
+            //       unattended-wayland deb、sbom.json。
+            const DELETE_150 = [
+              'rustdesk-1.5.0-x86_64.apk',
+              'rustdesk-1.5.0-universal.apk',
+              'rustdesk-1.5.0-armv7.apk',
+              'rustdesk-1.5.0-aarch64.apk',
+              'rustdesk-1.5.0-aarch64.exe',
+              'rustdesk-1.5.0-aarch64.msi',
+              'rustdesk-1.5.0-x86-sciter.exe',
+              'rustdesk-1.5.0-aarch64.deb',
+              'rustdesk-1.5.0-0.aarch64.rpm',
+              'rustdesk-1.5.0-0.aarch64-suse.rpm',
+              'rustdesk-1.5.0-x86_64-sciter.deb',
+              'rustdesk-1.5.0-armv7-sciter.deb',
+              'rustdesk-1.5.0-x86_64.AppImage',
+              'rustdesk-1.5.0-aarch64.AppImage',
+              'rustdesk-1.5.0-x86_64.flatpak',
+              'rustdesk-1.5.0-x86_64-sciter.flatpak',
+              'rustdesk-1.5.0-aarch64.flatpak',
+            ];
+
+            console.log(`repo=${owner}/${repo}`);
+            console.log(`dry_run=${dryRun}  keep_days=${keepDays}  asset_scope=${assetScope}`);
+            console.log('');
+
+            // ---------- 1) Actions 构建产物 ----------
+            const artifacts = await github.paginate(
+              github.rest.actions.listArtifactsForRepo,
+              { owner, repo, per_page: 100 },
+              (response) => response.data.artifacts
+            );
+
+            const cutoff = keepDays > 0 ? new Date(Date.now() - keepDays * 86400000) : null;
+            const targets = cutoff
+              ? artifacts.filter((a) => new Date(a.created_at) < cutoff)
+              : artifacts;
+
+            let bytes = 0;
+            for (const a of targets) bytes += a.size_in_bytes || 0;
+
+            console.log('== 1) Actions 构建产物 ==');
+            if (cutoff) console.log(`   保留 ${keepDays} 天内（cutoff=${cutoff.toISOString()}）`);
+            else console.log('   范围：全部');
+            console.log(`   总计 ${artifacts.length} 个，命中 ${targets.length} 个，合计 ${(bytes / 1073741824).toFixed(2)} GB`);
+
+            let ok = 0, fail = 0;
+            for (const a of targets) {
+              if (dryRun) {
+                console.log(`   [dry-run] 删除 artifact ${a.id}  ${(a.size_in_bytes / 1048576).toFixed(1)}MB  ${a.created_at}  ${a.name}`);
+                continue;
+              }
+              try {
+                await github.rest.actions.deleteArtifact({ owner, repo, artifact_id: a.id });
+                ok++;
+              } catch (e) {
+                fail++;
+                console.log(`   !! 删除失败 ${a.id} (${a.name}): ${e.message}`);
+              }
+            }
+
+            // ---------- 2) nightly release 附件 ----------
+            console.log('');
+            console.log('== 2) nightly release 附件 ==');
+
+            let assetHit = 0, assetBytes = 0, assetOk = 0, assetFail = 0;
+
+            if (assetScope === 'none') {
+              console.log('   asset_scope=none → 跳过');
+            } else {
+              const releases = await github.paginate(
+                github.rest.repos.listReleases,
+                { owner, repo, per_page: 100 }
+              );
+              console.log(`   release: ${releases.map((r) => r.tag_name).join(', ') || '(无)'}`);
+
+              const isTarget = (name) => {
+                if (name.includes('1.4.7')) return 'legacy 1.4.7';
+                if (assetScope === 'legacy_and_non_x86' && DELETE_150.includes(name)) return '1.5.0 非 x86/已停用变体';
+                return null;
+              };
+
+              for (const r of releases) {
+                const assets = await github.paginate(
+                  github.rest.repos.listReleaseAssets,
+                  { owner, repo, release_id: r.id, per_page: 100 },
+                  (response) => response.data
+                );
+                console.log(`   --- [${r.tag_name}] 共 ${assets.length} 个附件 ---`);
+
+                for (const a of assets) {
+                  const reason = isTarget(a.name);
+                  if (!reason) {
+                    console.log(`       KEEP   ${((a.size || 0) / 1048576).toFixed(1).padStart(7)}MB  ${a.name}`);
+                    continue;
+                  }
+                  assetHit++;
+                  assetBytes += a.size || 0;
+                  if (dryRun) {
+                    console.log(`       DELETE ${((a.size || 0) / 1048576).toFixed(1).padStart(7)}MB  ${a.name}   <- ${reason}`);
+                    continue;
+                  }
+                  try {
+                    await github.rest.repos.deleteReleaseAsset({ owner, repo, asset_id: a.id });
+                    assetOk++;
+                    console.log(`       已删   ${((a.size || 0) / 1048576).toFixed(1).padStart(7)}MB  ${a.name}`);
+                  } catch (e) {
+                    assetFail++;
+                    console.log(`       !! 删除失败 ${a.id} (${a.name}): ${e.message}`);
+                  }
+                }
+              }
+              console.log(`   命中 ${assetHit} 个，合计 ${(assetBytes / 1048576).toFixed(1)} MB`);
+            }
+
+            // ---------- 汇总 ----------
+            const summary = [
+              '## Cleanup 结果',
+              '',
+              `- 模式：**${dryRun ? '演练（未实际删除）' : '实际删除'}**`,
+              `- artifact_days：\`${keepDays}\`（0 = 全删）`,
+              `- asset_scope：\`${assetScope}\``,
+              '',
+              '| 项目 | 命中 | 已删除 | 失败 |',
+              '|---|---|---|---|',
+              `| Actions artifacts | ${targets.length} | ${dryRun ? 0 : ok} | ${dryRun ? 0 : fail} |`,
+              `| Release 附件 | ${assetBytes ? assetHit : 0} | ${assetOk} | ${assetFail} |`,
+              '',
+              `合计目标体积：artifacts ${(bytes / 1073741824).toFixed(2)} GB`,
+            ].join('\n');
+            await core.summary.addRaw(summary).write();
+
+            console.log('');
+            console.log(dryRun
+              ? `演练完成：将删除 ${targets.length} 个 artifacts（${(bytes / 1073741824).toFixed(2)} GB）+ ${assetHit} 个 release 附件（${(assetBytes / 1048576).toFixed(1)} MB）。未实际执行 —— 把 dry_run 改成 false 再跑一次即真正删除。`
+              : `执行完成：artifacts 删除 ${ok}（失败 ${fail}），release 附件删除 ${assetOk}（失败 ${assetFail}）。`);
+
+            if (fail > 0 || assetFail > 0) {
+              core.setFailed(`存在删除失败项：artifacts ${fail}，release 附件 ${assetFail}。可重跑一次补齐。`);
+            }
