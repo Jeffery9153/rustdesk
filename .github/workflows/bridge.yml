@@ -26,13 +26,15 @@ jobs:
               artifact-name: "bridge-artifact",
             }
           # Dedicated bridge for the Windows arm64 build (Flutter 3.44); runs in parallel.
-          - {
-              target: x86_64-unknown-linux-gnu,
-              os: ubuntu-22.04,
-              extra-build-args: "",
-              flutter-version: "3.44.8",
-              artifact-name: "bridge-artifact-flutter-3.44",
-            }
+          # [x86-only] 已停用：本 job 专供 Windows arm64 桥接库，其唯一消费者（build-for-windows-flutter
+          # 的 aarch64 实例）已随 Windows ARM 一并移除，留着只会白跑一个 job（2026-10-12）
+          # - {
+          #     target: x86_64-unknown-linux-gnu,
+          #     os: ubuntu-22.04,
+          #     extra-build-args: "",
+          #     flutter-version: "3.44.8",
+          #     artifact-name: "bridge-artifact-flutter-3.44",
+          #   }
     steps:
       - name: Checkout source code
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
