@@ -980,6 +980,28 @@ jobs:
           fi
           ./build.py --flutter --hwcodec --unix-file-copy-paste ${{ matrix.job.extra-build-args }}
 
+      # [macos-adhoc] When no Apple codesign certificate is configured, the app still has
+      # to be re-signed ad-hoc WITHOUT the hardened runtime flag.
+      # Xcode builds it ad-hoc + hardened runtime (CODE_SIGN_IDENTITY = "-" plus
+      # ENABLE_HARDENED_RUNTIME = YES in flutter/macos/Runner.xcodeproj). The hardened
+      # runtime turns on library validation, which requires every loaded dylib to carry
+      # the same Team ID as the main executable. Ad-hoc signatures have NO Team ID, so
+      # dyld refuses to load FlutterMacOS.framework and the app dies before it can draw
+      # anything (EXC_CRASH / SIGABRT, termination namespace DYLD, "different Team IDs").
+      # This steps also re-seals Contents/MacOS/service, which build.py copies into the
+      # bundle after the app itself was signed.
+      - name: Ad-hoc sign unsigned macOS app
+        if: env.MACOS_P12_BASE64 == null && env.UPLOAD_ARTIFACT == 'true'
+        run: |
+          APP=./flutter/build/macos/Build/Products/Release/RustDesk.app
+          codesign --force --deep --sign - "$APP"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          # hard guard: refuse to publish a dmg that cannot launch
+          if codesign -dv --verbose=4 "$APP" 2>&1 | grep -q 'CodeDirectory.*runtime'; then
+            echo "::error::hardened runtime flag still present - dyld library validation would make the app fail to launch."
+            exit 1
+          fi
+
       - name: create unsigned dmg
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
