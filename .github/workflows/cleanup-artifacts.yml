@@ -73,11 +73,15 @@ jobs:
             console.log('');
 
             // ---------- 1) Actions 构建产物 ----------
-            const artifacts = await github.paginate(
-              github.rest.actions.listArtifactsForRepo,
-              { owner, repo, per_page: 100 },
-              (response) => response.data.artifacts
-            );
+            // 注意：@octokit/plugin-paginate-rest 的 normalizePaginatedListResponse 已把
+            // {total_count, artifacts:[...]} 规范化成 artifacts 数组本身，
+            // 所以**不能**再写 (response) => response.data.artifacts（会得到 undefined）。
+            const artifacts = (
+              await github.paginate(
+                github.rest.actions.listArtifactsForRepo,
+                { owner, repo, per_page: 100 }
+              )
+            ).filter(Boolean);
 
             const cutoff = keepDays > 0 ? new Date(Date.now() - keepDays * 86400000) : null;
             const targets = cutoff
@@ -129,11 +133,13 @@ jobs:
               };
 
               for (const r of releases) {
-                const assets = await github.paginate(
-                  github.rest.repos.listReleaseAssets,
-                  { owner, repo, release_id: r.id, per_page: 100 },
-                  (response) => response.data
-                );
+                // 同上：不传 mapFn，让 paginate 直接返回规范化后的数组。
+                const assets = (
+                  await github.paginate(
+                    github.rest.repos.listReleaseAssets,
+                    { owner, repo, release_id: r.id, per_page: 100 }
+                  )
+                ).filter(Boolean);
                 console.log(`   --- [${r.tag_name}] 共 ${assets.length} 个附件 ---`);
 
                 for (const a of assets) {
